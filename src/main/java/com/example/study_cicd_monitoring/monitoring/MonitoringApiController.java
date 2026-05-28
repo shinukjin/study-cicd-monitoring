@@ -1,6 +1,7 @@
 package com.example.study_cicd_monitoring.monitoring;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,6 +20,11 @@ public class MonitoringApiController {
     @GetMapping("/summary")
     public Map<String, Object> summary() {
         return monitoringSummaryService.getSummary();
+    }
+
+    @GetMapping("/db/probe")
+    public Map<String, Object> dbProbe(@RequestParam(defaultValue = "manual-probe") String probeTag) {
+        return monitoringSummaryService.runDbProbe(probeTag);
     }
 }
 

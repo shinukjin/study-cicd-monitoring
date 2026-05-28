@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,11 +41,16 @@ public class MonitoringSummaryService {
 
     private Map<String, Object> dbSummary() {
         Map<String, Object> db = new LinkedHashMap<>();
-        db.put("status", dbHealthStatus());
+        DbCheckResult checkResult = dbCheck();
+        db.put("status", checkResult.status());
+        db.put("error", checkResult.errorMessage());
+        db.put("sampleQueryValue", checkResult.sampleQueryValue());
         db.put("activeConnections", gaugeValue("hikaricp.connections.active"));
         db.put("idleConnections", gaugeValue("hikaricp.connections.idle"));
         db.put("pendingConnections", gaugeValue("hikaricp.connections.pending"));
         db.put("maxConnections", gaugeValue("hikaricp.connections.max"));
+        db.put("datasourceUrl", environment.getProperty("spring.datasource.url", ""));
+        db.put("datasourceUser", environment.getProperty("spring.datasource.username", ""));
         return db;
     }
 
@@ -83,6 +89,7 @@ public class MonitoringSummaryService {
         apm.put("httpMeanLatencyMs", totalCount > 0 ? round((totalNanos / totalCount) / 1_000_000.0) : 0.0);
         apm.put("httpMaxLatencyMs", round(maxMillis));
         apm.put("topEndpoints", topEndpointLatency(timers, 7));
+        apm.put("statusCounts", statusCounts(timers));
         apm.put("tracingEnabled", Boolean.parseBoolean(environment.getProperty("management.tracing.enabled", "false")));
         apm.put("otlpEndpoint", environment.getProperty("management.otlp.tracing.endpoint", ""));
         return apm;
@@ -125,12 +132,51 @@ public class MonitoringSummaryService {
         return endpoints;
     }
 
-    private String dbHealthStatus() {
+    public Map<String, Object> runDbProbe(String probeTag) {
+        String sql = "SELECT ? AS probe_tag, DATABASE() AS db_name, CURRENT_USER() AS db_user, NOW(6) AS executed_at, 1 AS ok";
+        Map<String, Object> result = new LinkedHashMap<>();
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("probeTag", probeTag);
+        result.put("executedSql", sql);
+        result.put("params", params);
+        try {
+            Map<String, Object> row = jdbcTemplate.queryForMap(sql, probeTag);
+            result.put("status", "UP");
+            result.put("row", row);
+        } catch (Exception e) {
+            result.put("status", "DOWN");
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    private Map<String, Object> statusCounts(Collection<Timer> timers) {
+        Map<String, Long> counts = new HashMap<>();
+        for (Timer timer : timers) {
+            String status = "UNKNOWN";
+            for (Tag tag : timer.getId().getTags()) {
+                if ("status".equals(tag.getKey())) {
+                    status = tag.getValue();
+                    break;
+                }
+            }
+            long current = counts.getOrDefault(status, 0L);
+            counts.put(status, current + timer.count());
+        }
+        Map<String, Object> ordered = new LinkedHashMap<>();
+        counts.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> ordered.put(entry.getKey(), entry.getValue()));
+        return ordered;
+    }
+
+    private DbCheckResult dbCheck() {
         try {
             Integer value = jdbcTemplate.queryForObject("SELECT 1", Integer.class);
-            return (value != null && value == 1) ? "UP" : "UNKNOWN";
+            String status = (value != null && value == 1) ? "UP" : "UNKNOWN";
+            return new DbCheckResult(status, null, value);
         } catch (Exception e) {
-            return "DOWN";
+            return new DbCheckResult("DOWN", e.getMessage(), null);
         }
     }
 
@@ -161,5 +207,8 @@ public class MonitoringSummaryService {
             return null;
         }
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    private record DbCheckResult(String status, String errorMessage, Integer sampleQueryValue) {
     }
 }

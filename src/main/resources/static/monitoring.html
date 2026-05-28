@@ -90,10 +90,12 @@
     <section class="card">
       <h2>DB</h2>
       <div class="item"><span class="k">Status</span><span id="db-status" class="status">-</span></div>
+      <div class="item"><span class="k">Datasource User</span><span id="db-user">-</span></div>
       <div class="item"><span class="k">Active</span><span id="db-active">-</span></div>
       <div class="item"><span class="k">Idle</span><span id="db-idle">-</span></div>
       <div class="item"><span class="k">Pending</span><span id="db-pending">-</span></div>
       <div class="item"><span class="k">Max</span><span id="db-max">-</span></div>
+      <div class="item"><span class="k">Last Error</span><span id="db-error" style="text-align:right">-</span></div>
     </section>
 
     <section class="card">
@@ -114,8 +116,10 @@
     <section class="card">
       <h2>APM</h2>
       <div class="item"><span class="k">HTTP Count</span><span id="apm-count">-</span></div>
+      <div class="item"><span class="k">RPS (5s)</span><span id="apm-rps">-</span></div>
       <div class="item"><span class="k">Mean Latency (ms)</span><span id="apm-mean">-</span></div>
       <div class="item"><span class="k">Max Latency (ms)</span><span id="apm-max">-</span></div>
+      <div class="item"><span class="k">2xx / 4xx / 5xx</span><span id="apm-status-groups">-</span></div>
       <div class="item"><span class="k">Tracing Enabled</span><span id="apm-tracing">-</span></div>
       <div class="item"><span class="k">OTLP Endpoint</span><span id="apm-otlp" style="text-align:right">-</span></div>
     </section>
@@ -153,6 +157,8 @@
   let heapChart;
   let apmChart;
   let endpointChart;
+  let prevHttpCount = null;
+  let prevLoadedAt = null;
 
   function createLineChart(id, datasets) {
     return new Chart(document.getElementById(id), {
@@ -267,6 +273,8 @@
       document.getElementById("db-idle").textContent = fmt(db.idleConnections);
       document.getElementById("db-pending").textContent = fmt(db.pendingConnections);
       document.getElementById("db-max").textContent = fmt(db.maxConnections);
+      document.getElementById("db-user").textContent = db.datasourceUser || "-";
+      document.getElementById("db-error").textContent = db.error || "-";
 
       document.getElementById("cpu-process").textContent = fmt(cpu.processUsage, "%");
       document.getElementById("cpu-system").textContent = fmt(cpu.systemUsage, "%");
@@ -278,8 +286,26 @@
       document.getElementById("heap-usage").textContent = fmt(heap.usagePercent, "%");
 
       document.getElementById("apm-count").textContent = fmt(apm.httpRequestCount);
+      const now = Date.now();
+      let rps = null;
+      if (prevHttpCount !== null && prevLoadedAt !== null) {
+        const deltaCount = (apm.httpRequestCount ?? 0) - prevHttpCount;
+        const deltaSec = (now - prevLoadedAt) / 1000.0;
+        if (deltaSec > 0) {
+          rps = Math.max(0, deltaCount / deltaSec);
+        }
+      }
+      prevHttpCount = apm.httpRequestCount ?? 0;
+      prevLoadedAt = now;
+      document.getElementById("apm-rps").textContent = fmt(rps !== null ? Number(rps.toFixed(2)) : null);
       document.getElementById("apm-mean").textContent = fmt(apm.httpMeanLatencyMs);
       document.getElementById("apm-max").textContent = fmt(apm.httpMaxLatencyMs);
+      const statusCounts = apm.statusCounts || {};
+      const sumByPrefix = (prefix) => Object.entries(statusCounts)
+              .filter(([key]) => key.startsWith(prefix))
+              .reduce((acc, [, value]) => acc + (value || 0), 0);
+      document.getElementById("apm-status-groups").textContent =
+              `${sumByPrefix("2")} / ${sumByPrefix("4")} / ${sumByPrefix("5")}`;
       document.getElementById("apm-tracing").textContent = apm.tracingEnabled ? "true" : "false";
       document.getElementById("apm-otlp").textContent = apm.otlpEndpoint || "-";
       updateEndpointChart(apm.topEndpoints);
