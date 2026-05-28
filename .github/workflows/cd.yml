@@ -1,4 +1,4 @@
-name: CD
+name: Build and Push Image
 
 on:
   workflow_dispatch:
@@ -10,9 +10,8 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/study-cicd-monitoring
 
 jobs:
-  deploy:
+  build-push:
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
       packages: write
@@ -44,19 +43,9 @@ jobs:
           docker push $IMAGE_NAME:${{ github.sha }}
           docker push $IMAGE_NAME:latest
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /opt/study-cicd-monitoring
-            export APP_IMAGE=${{ env.IMAGE_NAME }}:latest
-            export SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-            export GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
-            docker compose pull app
-            docker compose up -d
-            curl -fsS http://localhost:8080/actuator/health
-            docker compose ps app
+      - name: Output image tags
+        run: |
+          echo "Pushed tags:"
+          echo "$IMAGE_NAME:${{ github.sha }}"
+          echo "$IMAGE_NAME:latest"
 
