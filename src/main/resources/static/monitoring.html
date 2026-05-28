@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoring Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --line: #26344f;
+      --text: #e8eefc;
+      --muted: #9fb0d2;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 26px;
+      font-weight: 700;
+    }
+    .meta {
+      color: var(--muted);
+      margin-bottom: 18px;
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    .item .k {
+      color: var(--muted);
+    }
+    .status {
+      font-weight: 700;
+    }
+    .chart-wrap {
+      height: 220px;
+    }
+    .ok { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DB / CPU / HEAP / APM 모니터링</h1>
+  <div class="meta">
+    API: <code>/api/monitoring/summary</code> | 새로고침: 5초 | 마지막 업데이트: <span id="updated">-</span>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>DB</h2>
+      <div class="item"><span class="k">Status</span><span id="db-status" class="status">-</span></div>
+      <div class="item"><span class="k">Active</span><span id="db-active">-</span></div>
+      <div class="item"><span class="k">Idle</span><span id="db-idle">-</span></div>
+      <div class="item"><span class="k">Pending</span><span id="db-pending">-</span></div>
+      <div class="item"><span class="k">Max</span><span id="db-max">-</span></div>
+    </section>
+
+    <section class="card">
+      <h2>CPU</h2>
+      <div class="item"><span class="k">Process Usage</span><span id="cpu-process">-</span></div>
+      <div class="item"><span class="k">System Usage</span><span id="cpu-system">-</span></div>
+      <div class="item"><span class="k">Load Avg (1m)</span><span id="cpu-load">-</span></div>
+    </section>
+
+    <section class="card">
+      <h2>HEAP</h2>
+      <div class="item"><span class="k">Used (MB)</span><span id="heap-used">-</span></div>
+      <div class="item"><span class="k">Committed (MB)</span><span id="heap-committed">-</span></div>
+      <div class="item"><span class="k">Max (MB)</span><span id="heap-max">-</span></div>
+      <div class="item"><span class="k">Usage (%)</span><span id="heap-usage">-</span></div>
+    </section>
+
+    <section class="card">
+      <h2>APM</h2>
+      <div class="item"><span class="k">HTTP Count</span><span id="apm-count">-</span></div>
+      <div class="item"><span class="k">Mean Latency (ms)</span><span id="apm-mean">-</span></div>
+      <div class="item"><span class="k">Max Latency (ms)</span><span id="apm-max">-</span></div>
+      <div class="item"><span class="k">Tracing Enabled</span><span id="apm-tracing">-</span></div>
+      <div class="item"><span class="k">OTLP Endpoint</span><span id="apm-otlp" style="text-align:right">-</span></div>
+    </section>
+  </div>
+
+  <div class="chart-grid">
+    <section class="card">
+      <h2>DB Connections Trend</h2>
+      <div class="chart-wrap"><canvas id="dbChart"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>CPU Trend</h2>
+      <div class="chart-wrap"><canvas id="cpuChart"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>Heap Trend</h2>
+      <div class="chart-wrap"><canvas id="heapChart"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>APM Latency Trend</h2>
+      <div class="chart-wrap"><canvas id="apmChart"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>Endpoint Latency Top N</h2>
+      <div class="chart-wrap"><canvas id="endpointChart"></canvas></div>
+    </section>
+  </div>
+</div>
+
+<script>
+  const MAX_POINTS = 30;
+  const labels = [];
+  let dbChart;
+  let cpuChart;
+  let heapChart;
+  let apmChart;
+  let endpointChart;
+
+  function createLineChart(id, datasets) {
+    return new Chart(document.getElementById(id), {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { labels: { color: "#cfe0ff" } }
+        },
+        scales: {
+          x: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } },
+          y: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } }
+        }
+      }
+    });
+  }
+
+  function initCharts() {
+    dbChart = createLineChart("dbChart", [
+      { label: "Active", borderColor: "#22c55e", data: [], tension: 0.25 },
+      { label: "Pending", borderColor: "#f59e0b", data: [], tension: 0.25 }
+    ]);
+    cpuChart = createLineChart("cpuChart", [
+      { label: "Process %", borderColor: "#38bdf8", data: [], tension: 0.25 },
+      { label: "System %", borderColor: "#a78bfa", data: [], tension: 0.25 }
+    ]);
+    heapChart = createLineChart("heapChart", [
+      { label: "Heap Used MB", borderColor: "#f97316", data: [], tension: 0.25 },
+      { label: "Heap Usage %", borderColor: "#ef4444", data: [], tension: 0.25 }
+    ]);
+    apmChart = createLineChart("apmChart", [
+      { label: "Mean ms", borderColor: "#10b981", data: [], tension: 0.25 },
+      { label: "Max ms", borderColor: "#eab308", data: [], tension: 0.25 }
+    ]);
+
+    endpointChart = new Chart(document.getElementById("endpointChart"), {
+      type: "bar",
+      data: {
+        labels: [],
+        datasets: [
+          { label: "Mean ms", data: [], backgroundColor: "#60a5fa" },
+          { label: "Max ms", data: [], backgroundColor: "#f59e0b" }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { labels: { color: "#cfe0ff" } }
+        },
+        scales: {
+          x: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } },
+          y: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } }
+        }
+      }
+    });
+  }
+
+  function pushPoint(chart, values) {
+    for (let i = 0; i < chart.data.datasets.length; i++) {
+      chart.data.datasets[i].data.push(values[i]);
+      if (chart.data.datasets[i].data.length > MAX_POINTS) {
+        chart.data.datasets[i].data.shift();
+      }
+    }
+    chart.update();
+  }
+
+  function pushLabel() {
+    labels.push(new Date().toLocaleTimeString());
+    if (labels.length > MAX_POINTS) labels.shift();
+  }
+
+  function updateEndpointChart(items) {
+    const list = Array.isArray(items) ? items : [];
+    endpointChart.data.labels = list.map(x => x.uri);
+    endpointChart.data.datasets[0].data = list.map(x => x.meanMs ?? 0);
+    endpointChart.data.datasets[1].data = list.map(x => x.maxMs ?? 0);
+    endpointChart.update();
+  }
+
+  function fmt(v, unit = "") {
+    if (v === null || v === undefined || Number.isNaN(v)) return "-";
+    return `${v}${unit}`;
+  }
+
+  function statusClass(status) {
+    if (status === "UP") return "ok";
+    if (status === "UNKNOWN") return "warn";
+    return "bad";
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/monitoring/summary");
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+
+      const db = data.db || {};
+      const cpu = data.cpu || {};
+      const heap = data.heap || {};
+      const apm = data.apm || {};
+
+      const dbStatus = document.getElementById("db-status");
+      dbStatus.textContent = db.status || "-";
+      dbStatus.className = `status ${statusClass(db.status)}`;
+      document.getElementById("db-active").textContent = fmt(db.activeConnections);
+      document.getElementById("db-idle").textContent = fmt(db.idleConnections);
+      document.getElementById("db-pending").textContent = fmt(db.pendingConnections);
+      document.getElementById("db-max").textContent = fmt(db.maxConnections);
+
+      document.getElementById("cpu-process").textContent = fmt(cpu.processUsage, "%");
+      document.getElementById("cpu-system").textContent = fmt(cpu.systemUsage, "%");
+      document.getElementById("cpu-load").textContent = fmt(cpu.systemLoadAverage1m);
+
+      document.getElementById("heap-used").textContent = fmt(heap.usedMb);
+      document.getElementById("heap-committed").textContent = fmt(heap.committedMb);
+      document.getElementById("heap-max").textContent = fmt(heap.maxMb);
+      document.getElementById("heap-usage").textContent = fmt(heap.usagePercent, "%");
+
+      document.getElementById("apm-count").textContent = fmt(apm.httpRequestCount);
+      document.getElementById("apm-mean").textContent = fmt(apm.httpMeanLatencyMs);
+      document.getElementById("apm-max").textContent = fmt(apm.httpMaxLatencyMs);
+      document.getElementById("apm-tracing").textContent = apm.tracingEnabled ? "true" : "false";
+      document.getElementById("apm-otlp").textContent = apm.otlpEndpoint || "-";
+      updateEndpointChart(apm.topEndpoints);
+
+      pushLabel();
+      pushPoint(dbChart, [db.activeConnections ?? null, db.pendingConnections ?? null]);
+      pushPoint(cpuChart, [cpu.processUsage ?? null, cpu.systemUsage ?? null]);
+      pushPoint(heapChart, [heap.usedMb ?? null, heap.usagePercent ?? null]);
+      pushPoint(apmChart, [apm.httpMeanLatencyMs ?? null, apm.httpMaxLatencyMs ?? null]);
+
+      document.getElementById("updated").textContent = new Date().toLocaleString();
+    } catch (e) {
+      document.getElementById("updated").textContent = `오류: ${e.message}`;
+    }
+  }
+
+  initCharts();
+  load();
+  setInterval(load, 5000);
+</script>
+</body>
+</html>
