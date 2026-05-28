@@ -7,9 +7,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/
-      SPRING_DATASOURCE_USERNAME: 
-      SPRING_DATASOURCE_PASSWORD: 
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/study
+      SPRING_DATASOURCE_USERNAME: study
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-study1234}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
     depends_on:
       - mariadb
@@ -19,12 +19,12 @@ services:
 
   mariadb:
     image: mariadb:11
-    container_name: 
+    container_name: study-mariadb
     environment:
-      MARIADB_DATABASE: 
-      MARIADB_USER: 
-      MARIADB_PASSWORD: 
-      MARIADB_ROOT_PASSWORD: 
+      MARIADB_DATABASE: study
+      MARIADB_USER: study
+      MARIADB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-study1234}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root1234}
     ports:
       - "3306:3306"
     volumes:
@@ -53,7 +53,10 @@ services:
     container_name: study-grafana
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: 
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin1234}
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "3000:3000"
     depends_on:

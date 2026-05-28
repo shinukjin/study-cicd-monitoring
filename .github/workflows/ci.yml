@@ -26,3 +26,27 @@ jobs:
       - name: Build Docker image
         run: docker build -t study-cicd-monitoring:ci .
 
+      - name: Smoke test container health
+        run: |
+          docker run -d --name study-smoke -p 18080:8080 \
+            -e SPRING_DATASOURCE_URL=jdbc:mariadb://invalid:3306/study \
+            -e MANAGEMENT_HEALTH_DB_ENABLED=false \
+            study-cicd-monitoring:ci
+          for i in {1..30}; do
+            if curl -fsS http://localhost:18080/actuator/health; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://localhost:18080/actuator/health
+          docker rm -f study-smoke
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: study-cicd-monitoring:ci
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+

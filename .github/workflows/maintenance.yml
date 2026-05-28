@@ -1,0 +1,22 @@
+name: Maintenance
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+jobs:
+  docker-prune:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Cleanup old Docker images on deploy server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            docker image prune -af --filter "until=168h"
+            docker system df
+
