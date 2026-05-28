@@ -1,0 +1,7 @@
+.gradle
+build
+.git
+.github
+*.iml
+out
+

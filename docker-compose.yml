@@ -1,0 +1,139 @@
+services:
+  app:
+    image: ${APP_IMAGE:-ghcr.io/owner/study-cicd-monitoring:latest}
+    build:
+      context: .
+    container_name: study-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/
+      SPRING_DATASOURCE_USERNAME: 
+      SPRING_DATASOURCE_PASSWORD: 
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      - mariadb
+      - otel-collector
+    networks:
+      - monitor-net
+
+  mariadb:
+    image: mariadb:11
+    container_name: 
+    environment:
+      MARIADB_DATABASE: 
+      MARIADB_USER: 
+      MARIADB_PASSWORD: 
+      MARIADB_ROOT_PASSWORD: 
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - monitor-net
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: study-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+      - alertmanager
+    networks:
+      - monitor-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: study-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: 
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    networks:
+      - monitor-net
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: study-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    networks:
+      - monitor-net
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: study-node-exporter
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - /:/host:ro,rslave
+    ports:
+      - "9100:9100"
+    networks:
+      - monitor-net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: study-cadvisor
+    privileged: true
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitor-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: study-otel-collector
+    command:
+      - "--config=/etc/otelcol-contrib/config.yaml"
+    volumes:
+      - ./monitoring/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    depends_on:
+      - tempo
+    networks:
+      - monitor-net
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: study-tempo
+    command:
+      - "-config.file=/etc/tempo.yaml"
+    volumes:
+      - ./monitoring/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "3200:3200"
+    networks:
+      - monitor-net
+
+networks:
+  monitor-net:
+    driver: bridge
+
+volumes:
+  mariadb-data:
+  tempo-data:
+

@@ -1,0 +1,59 @@
+groups:
+  - name: app-alerts
+    rules:
+      - alert: AppDown
+        expr: up{job="spring-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Spring app is down"
+          description: "Prometheus cannot scrape the Spring application."
+
+      - alert: HighHttp5xxRate
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "HTTP 5xx rate is above threshold for 5 minutes."
+
+      - alert: HighP95Latency
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 latency"
+          description: "HTTP p95 latency is above 1 second."
+
+  - name: infra-alerts
+    rules:
+      - alert: HighHostCpuUsage
+        expr: (100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host CPU usage is high"
+          description: "Host CPU usage exceeded 85% for 10 minutes."
+
+      - alert: HighHostMemoryUsage
+        expr: ((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory usage is high"
+          description: "Host memory usage exceeded 85% for 10 minutes."
+
+      - alert: LowDiskSpace
+        expr: ((node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"}) * 100) < 15
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space"
+          description: "Host disk free space is below 15%."
+
