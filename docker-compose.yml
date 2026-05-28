@@ -3,9 +3,8 @@ services:
     image: ${APP_IMAGE:-ghcr.io/owner/study-cicd-monitoring:latest}
     build:
       context: .
-    container_name: study-app
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-18080}:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/study
       SPRING_DATASOURCE_USERNAME: study
@@ -19,14 +18,11 @@ services:
 
   mariadb:
     image: mariadb:11
-    container_name: study-mariadb
     environment:
       MARIADB_DATABASE: study
       MARIADB_USER: study
       MARIADB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-study1234}
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root1234}
-    ports:
-      - "3306:3306"
     volumes:
       - mariadb-data:/var/lib/mysql
     networks:
@@ -34,14 +30,13 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.53.0
-    container_name: study-prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-19090}:9090"
     depends_on:
       - app
       - alertmanager
@@ -50,7 +45,6 @@ services:
 
   grafana:
     image: grafana/grafana:11.2.0
-    container_name: study-grafana
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin1234}
@@ -58,7 +52,7 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-13000}:3000"
     depends_on:
       - prometheus
       - tempo
@@ -67,34 +61,33 @@ services:
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
-    container_name: study-alertmanager
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
     volumes:
       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     ports:
-      - "9093:9093"
+      - "${ALERTMANAGER_PORT:-19093}:9093"
     networks:
       - monitor-net
 
   node-exporter:
+    profiles: ["linux-host-observe"]
     image: prom/node-exporter:v1.8.2
-    container_name: study-node-exporter
     command:
       - "--path.rootfs=/host"
     volumes:
       - /:/host:ro,rslave
     ports:
-      - "9100:9100"
+      - "${NODE_EXPORTER_PORT:-19100}:9100"
     networks:
       - monitor-net
 
   cadvisor:
+    profiles: ["linux-host-observe"]
     image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: study-cadvisor
     privileged: true
     ports:
-      - "8081:8080"
+      - "${CADVISOR_PORT:-18081}:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -105,15 +98,14 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
-    container_name: study-otel-collector
     command:
       - "--config=/etc/otelcol-contrib/config.yaml"
     volumes:
       - ./monitoring/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "8889:8889"
+      - "${OTEL_GRPC_PORT:-14317}:4317"
+      - "${OTEL_HTTP_PORT:-14318}:4318"
+      - "${OTEL_METRICS_PORT:-18889}:8889"
     depends_on:
       - tempo
     networks:
@@ -121,14 +113,14 @@ services:
 
   tempo:
     image: grafana/tempo:2.6.0
-    container_name: study-tempo
+    user: "0:0"
     command:
       - "-config.file=/etc/tempo.yaml"
     volumes:
       - ./monitoring/tempo/tempo.yaml:/etc/tempo.yaml:ro
       - tempo-data:/tmp/tempo
     ports:
-      - "3200:3200"
+      - "${TEMPO_PORT:-13200}:3200"
     networks:
       - monitor-net
 

@@ -58,5 +58,5 @@ jobs:
             docker compose pull app
             docker compose up -d
             curl -fsS http://localhost:8080/actuator/health
-            docker ps --filter "name=study-app" --format "{{.Image}} {{.Status}}"
+            docker compose ps app
 
