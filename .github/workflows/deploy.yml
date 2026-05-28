@@ -47,6 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          docker compose down --remove-orphans || true
           APP_IMAGE=${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }} docker compose pull app
           APP_IMAGE=${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }} docker compose up -d app
           docker image prune -f

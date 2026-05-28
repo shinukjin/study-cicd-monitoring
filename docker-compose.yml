@@ -1,3 +1,5 @@
+name: study-cicd-monitoring
+
 services:
   app:
     image: ${APP_IMAGE:-ghcr.io/owner/study-cicd-monitoring:latest}
@@ -105,9 +107,9 @@ services:
     volumes:
       - ./monitoring/otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "${OTEL_GRPC_PORT:-14317}:4317"
-      - "${OTEL_HTTP_PORT:-14318}:4318"
-      - "${OTEL_METRICS_PORT:-18889}:8889"
+      - "${OTEL_GRPC_PORT:-24317}:4317"
+      - "${OTEL_HTTP_PORT:-24318}:4318"
+      - "${OTEL_METRICS_PORT:-28889}:8889"
     depends_on:
       - tempo
     networks:
@@ -122,7 +124,7 @@ services:
       - ./monitoring/tempo/tempo.yaml:/etc/tempo.yaml:ro
       - tempo-data:/tmp/tempo
     ports:
-      - "${TEMPO_PORT:-13200}:3200"
+      - "${TEMPO_PORT:-23200}:3200"
     networks:
       - monitor-net
 
