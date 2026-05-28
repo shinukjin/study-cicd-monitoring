@@ -31,6 +31,13 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x ./gradlew
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Show gradlew permission
+        run: |
+          ls -al gradlew
+
       - name: Build Spring Boot
         run: ./gradlew clean build -x test
 
