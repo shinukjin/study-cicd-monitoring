@@ -4,6 +4,12 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
+ext {
+	// Security override until upstream BOM includes patched versions.
+	set('tomcat.version', '11.0.22')
+	set('netty.version', '4.2.13.Final')
+}
+
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 
@@ -33,11 +39,6 @@ dependencies {
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
-
-	constraints {
-			implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.22")
-			implementation("io.netty:netty-codec-compression:4.2.13.Final")
-	}
 }
 
 tasks.named('test') {
