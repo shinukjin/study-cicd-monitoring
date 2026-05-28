@@ -6,23 +6,25 @@ services:
     ports:
       - "${APP_PORT:-18080}:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/study
-      SPRING_DATASOURCE_USERNAME: study
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-study1234}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mariadb://host.docker.internal:3306/study}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - mariadb
       - otel-collector
     networks:
       - monitor-net
 
   mariadb:
+    profiles: ["local-db"]
     image: mariadb:11
     environment:
       MARIADB_DATABASE: study
-      MARIADB_USER: study
-      MARIADB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-study1234}
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root1234}
+      MARIADB_USER: root
+      MARIADB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-skic}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-skic}
     volumes:
       - mariadb-data:/var/lib/mysql
     networks:
