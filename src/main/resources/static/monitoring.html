@@ -3,154 +3,494 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monitoring Dashboard</title>
+  <title>Service Monitoring Dashboard</title>
+  <link rel="icon" href="data:,">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
-      --bg: #0b1220;
-      --panel: #121a2b;
-      --line: #26344f;
-      --text: #e8eefc;
-      --muted: #9fb0d2;
-      --good: #22c55e;
-      --warn: #f59e0b;
-      --bad: #ef4444;
+      --bg: #f3f6fb;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
+      --line: #d6dee8;
+      --text: #0f172a;
+      --muted: #5b6473;
+      --accent: #0ea5e9;
+      --good: #16a34a;
+      --warn: #d97706;
+      --bad: #dc2626;
     }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: "Segoe UI", "Noto Sans KR", sans-serif;
-      background: var(--bg);
       color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, #e0f2fe 0%, transparent 35%),
+        radial-gradient(circle at 100% 0%, #dbeafe 0%, transparent 30%),
+        var(--bg);
     }
-    .wrap {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    h1 {
-      margin: 0 0 16px;
-      font-size: 26px;
-      font-weight: 700;
-    }
-    .meta {
-      color: var(--muted);
-      margin-bottom: 18px;
-      font-size: 13px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 12px;
-    }
-    .chart-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
+
+    .shell {
+      width: 100%;
       padding: 14px;
     }
-    .card h2 {
-      margin: 0 0 12px;
-      font-size: 16px;
+
+    .header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
     }
-    .item {
+
+    .title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--surface-alt);
+      white-space: nowrap;
+    }
+
+    .chip.ok {
+      color: var(--good);
+      border-color: #b9e7ca;
+      background: #ecfdf3;
+    }
+
+    .chip.warn {
+      color: var(--warn);
+      border-color: #f8d9aa;
+      background: #fff7ed;
+    }
+
+    .chip.bad {
+      color: var(--bad);
+      border-color: #f5b8b8;
+      background: #fef2f2;
+    }
+
+    .alerts {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .alert {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+    }
+
+    .alert.ok { border-left-color: var(--good); }
+    .alert.warn { border-left-color: var(--warn); }
+    .alert.bad { border-left-color: var(--bad); }
+
+    .kpi-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 88px;
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .kpi-value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+
+    .kpi-foot {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
       display: flex;
       justify-content: space-between;
       gap: 8px;
-      margin: 8px 0;
+    }
+
+    .main-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr) 460px;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .panel-title {
+      margin: 0 0 10px;
       font-size: 14px;
-    }
-    .item .k {
-      color: var(--muted);
-    }
-    .status {
       font-weight: 700;
     }
-    .chart-wrap {
-      height: 220px;
+
+    .metric-list {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
     }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      font-size: 13px;
+      align-items: baseline;
+    }
+
+    .row .k {
+      color: var(--muted);
+    }
+
+    .row .v {
+      font-weight: 600;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .bar {
+      margin-top: 6px;
+      height: 8px;
+      border-radius: 999px;
+      background: #e7edf4;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width 0.2s ease;
+    }
+
+    .charts {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .chart-box {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 270px;
+    }
+
+    .chart-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .chart-wrap {
+      height: 230px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f7fafc;
+      color: #334155;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    td.path {
+      white-space: normal;
+      word-break: break-all;
+      color: #1e293b;
+    }
+
     .ok { color: var(--good); }
     .warn { color: var(--warn); }
     .bad { color: var(--bad); }
+
+    @media (max-width: 1680px) {
+      .main-grid {
+        grid-template-columns: 330px minmax(0, 1fr);
+      }
+
+      .right {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .header {
+        grid-template-columns: 1fr;
+      }
+
+      .meta {
+        justify-content: flex-start;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .charts {
+        grid-template-columns: 1fr;
+      }
+
+      .alerts {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        padding: 10px;
+      }
+
+      .title {
+        font-size: 18px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .kpi-value {
+        font-size: 20px;
+      }
+    }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>DB / CPU / HEAP / APM 모니터링</h1>
-  <div class="meta">
-    API: <code>/api/monitoring/summary</code> | 새로고침: 5초 | 마지막 업데이트: <span id="updated">-</span>
-  </div>
+<div class="shell">
+  <header class="header">
+    <div>
+      <h1 class="title">서비스 모니터링 대시보드</h1>
+      <div class="subtitle">
+        API: <code>/api/monitoring/summary</code> | 자동 갱신: 5초
+      </div>
+    </div>
+    <div class="meta">
+      <span id="overall-chip" class="chip">종합 상태 -</span>
+      <span class="chip">마지막 갱신: <span id="updated">-</span></span>
+      <span class="chip">기준시각: <span id="clock">-</span></span>
+    </div>
+  </header>
 
-  <div class="grid">
-    <section class="card">
-      <h2>DB</h2>
-      <div class="item"><span class="k">Status</span><span id="db-status" class="status">-</span></div>
-      <div class="item"><span class="k">Datasource User</span><span id="db-user">-</span></div>
-      <div class="item"><span class="k">Active</span><span id="db-active">-</span></div>
-      <div class="item"><span class="k">Idle</span><span id="db-idle">-</span></div>
-      <div class="item"><span class="k">Pending</span><span id="db-pending">-</span></div>
-      <div class="item"><span class="k">Max</span><span id="db-max">-</span></div>
-      <div class="item"><span class="k">Last Error</span><span id="db-error" style="text-align:right">-</span></div>
-    </section>
+  <section class="alerts">
+    <div id="alert-db" class="alert ok">DB 상태 확인 중...</div>
+    <div id="alert-cpu-heap" class="alert ok">CPU/HEAP 상태 확인 중...</div>
+    <div id="alert-apm" class="alert ok">APM 상태 확인 중...</div>
+  </section>
 
-    <section class="card">
-      <h2>CPU</h2>
-      <div class="item"><span class="k">Process Usage</span><span id="cpu-process">-</span></div>
-      <div class="item"><span class="k">System Usage</span><span id="cpu-system">-</span></div>
-      <div class="item"><span class="k">Load Avg (1m)</span><span id="cpu-load">-</span></div>
-    </section>
+  <section class="kpi-grid">
+    <article class="kpi">
+      <div class="kpi-label">DB 상태</div>
+      <div id="db-status" class="kpi-value">-</div>
+      <div class="kpi-foot">
+        <span>사용자</span><span id="db-user">-</span>
+      </div>
+    </article>
+    <article class="kpi">
+      <div class="kpi-label">DB 연결 사용률</div>
+      <div id="db-usage" class="kpi-value">-</div>
+      <div class="kpi-foot">
+        <span>Active/Max</span><span id="db-active-max">-</span>
+      </div>
+    </article>
+    <article class="kpi">
+      <div class="kpi-label">CPU 사용률</div>
+      <div id="cpu-system" class="kpi-value">-</div>
+      <div class="kpi-foot">
+        <span>Process</span><span id="cpu-process">-</span>
+      </div>
+    </article>
+    <article class="kpi">
+      <div class="kpi-label">HEAP 사용률</div>
+      <div id="heap-usage" class="kpi-value">-</div>
+      <div class="kpi-foot">
+        <span>Used/Max MB</span><span id="heap-used-max">-</span>
+      </div>
+    </article>
+    <article class="kpi">
+      <div class="kpi-label">APM 평균 지연</div>
+      <div id="apm-mean" class="kpi-value">-</div>
+      <div class="kpi-foot">
+        <span>최대 지연</span><span id="apm-max">-</span>
+      </div>
+    </article>
+    <article class="kpi">
+      <div class="kpi-label">HTTP 처리량</div>
+      <div id="apm-rps" class="kpi-value">-</div>
+      <div class="kpi-foot">
+        <span>Total Count</span><span id="apm-count">-</span>
+      </div>
+    </article>
+  </section>
 
-    <section class="card">
-      <h2>HEAP</h2>
-      <div class="item"><span class="k">Used (MB)</span><span id="heap-used">-</span></div>
-      <div class="item"><span class="k">Committed (MB)</span><span id="heap-committed">-</span></div>
-      <div class="item"><span class="k">Max (MB)</span><span id="heap-max">-</span></div>
-      <div class="item"><span class="k">Usage (%)</span><span id="heap-usage">-</span></div>
-    </section>
+  <section class="main-grid">
+    <aside class="left panel">
+      <h2 class="panel-title">세부 상태</h2>
+      <div class="metric-list">
+        <div class="row"><span class="k">DB Pending</span><span id="db-pending" class="v">-</span></div>
+        <div class="row"><span class="k">DB Idle</span><span id="db-idle" class="v">-</span></div>
+        <div class="row"><span class="k">DB Error</span><span id="db-error" class="v">-</span></div>
+        <div class="row"><span class="k">CPU Load Avg (1m)</span><span id="cpu-load" class="v">-</span></div>
+        <div class="row"><span class="k">Heap Used (MB)</span><span id="heap-used" class="v">-</span></div>
+        <div class="row"><span class="k">Heap Committed (MB)</span><span id="heap-committed" class="v">-</span></div>
+        <div class="row"><span class="k">Heap Max (MB)</span><span id="heap-max" class="v">-</span></div>
+        <div class="row"><span class="k">HTTP 2xx / 4xx / 5xx</span><span id="apm-status-groups" class="v">-</span></div>
+        <div class="row"><span class="k">Tracing Enabled</span><span id="apm-tracing" class="v">-</span></div>
+        <div class="row"><span class="k">OTLP Endpoint</span><span id="apm-otlp" class="v">-</span></div>
+      </div>
 
-    <section class="card">
-      <h2>APM</h2>
-      <div class="item"><span class="k">HTTP Count</span><span id="apm-count">-</span></div>
-      <div class="item"><span class="k">RPS (5s)</span><span id="apm-rps">-</span></div>
-      <div class="item"><span class="k">Mean Latency (ms)</span><span id="apm-mean">-</span></div>
-      <div class="item"><span class="k">Max Latency (ms)</span><span id="apm-max">-</span></div>
-      <div class="item"><span class="k">2xx / 4xx / 5xx</span><span id="apm-status-groups">-</span></div>
-      <div class="item"><span class="k">Tracing Enabled</span><span id="apm-tracing">-</span></div>
-      <div class="item"><span class="k">OTLP Endpoint</span><span id="apm-otlp" style="text-align:right">-</span></div>
-    </section>
-  </div>
+      <div class="panel-title">임계치 지표</div>
+      <div class="metric-list">
+        <div>
+          <div class="row"><span class="k">DB Connection Usage</span><span id="bar-db-label" class="v">-</span></div>
+          <div class="bar"><span id="bar-db"></span></div>
+        </div>
+        <div>
+          <div class="row"><span class="k">CPU System Usage</span><span id="bar-cpu-label" class="v">-</span></div>
+          <div class="bar"><span id="bar-cpu"></span></div>
+        </div>
+        <div>
+          <div class="row"><span class="k">Heap Usage</span><span id="bar-heap-label" class="v">-</span></div>
+          <div class="bar"><span id="bar-heap"></span></div>
+        </div>
+      </div>
+    </aside>
 
-  <div class="chart-grid">
-    <section class="card">
-      <h2>DB Connections Trend</h2>
-      <div class="chart-wrap"><canvas id="dbChart"></canvas></div>
-    </section>
-    <section class="card">
-      <h2>CPU Trend</h2>
-      <div class="chart-wrap"><canvas id="cpuChart"></canvas></div>
-    </section>
-    <section class="card">
-      <h2>Heap Trend</h2>
-      <div class="chart-wrap"><canvas id="heapChart"></canvas></div>
-    </section>
-    <section class="card">
-      <h2>APM Latency Trend</h2>
-      <div class="chart-wrap"><canvas id="apmChart"></canvas></div>
-    </section>
-    <section class="card">
-      <h2>Endpoint Latency Top N</h2>
-      <div class="chart-wrap"><canvas id="endpointChart"></canvas></div>
-    </section>
-  </div>
+    <div class="center charts">
+      <article class="chart-box">
+        <h3 class="chart-title">DB Connections Trend</h3>
+        <div class="chart-wrap"><canvas id="dbChart"></canvas></div>
+      </article>
+      <article class="chart-box">
+        <h3 class="chart-title">CPU Trend</h3>
+        <div class="chart-wrap"><canvas id="cpuChart"></canvas></div>
+      </article>
+      <article class="chart-box">
+        <h3 class="chart-title">Heap Trend</h3>
+        <div class="chart-wrap"><canvas id="heapChart"></canvas></div>
+      </article>
+      <article class="chart-box">
+        <h3 class="chart-title">APM Latency Trend</h3>
+        <div class="chart-wrap"><canvas id="apmChart"></canvas></div>
+      </article>
+    </div>
+
+    <aside class="right panel">
+      <h2 class="panel-title">Endpoint Latency Top N</h2>
+      <div class="chart-wrap" style="height: 210px; margin-bottom: 10px;"><canvas id="endpointChart"></canvas></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+          <tr>
+            <th style="width: 46%;">URI</th>
+            <th style="width: 14%;">Count</th>
+            <th style="width: 20%;">Mean (ms)</th>
+            <th style="width: 20%;">Max (ms)</th>
+          </tr>
+          </thead>
+          <tbody id="endpoint-tbody">
+          <tr><td class="path" colspan="4">데이터 수집 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </aside>
+  </section>
 </div>
 
 <script>
   const MAX_POINTS = 30;
+  const REFRESH_MS = 5000;
   const labels = [];
   let dbChart;
   let cpuChart;
@@ -160,93 +500,16 @@
   let prevHttpCount = null;
   let prevLoadedAt = null;
 
-  function createLineChart(id, datasets) {
-    return new Chart(document.getElementById(id), {
-      type: "line",
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: { labels: { color: "#cfe0ff" } }
-        },
-        scales: {
-          x: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } },
-          y: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } }
-        }
-      }
-    });
-  }
-
-  function initCharts() {
-    dbChart = createLineChart("dbChart", [
-      { label: "Active", borderColor: "#22c55e", data: [], tension: 0.25 },
-      { label: "Pending", borderColor: "#f59e0b", data: [], tension: 0.25 }
-    ]);
-    cpuChart = createLineChart("cpuChart", [
-      { label: "Process %", borderColor: "#38bdf8", data: [], tension: 0.25 },
-      { label: "System %", borderColor: "#a78bfa", data: [], tension: 0.25 }
-    ]);
-    heapChart = createLineChart("heapChart", [
-      { label: "Heap Used MB", borderColor: "#f97316", data: [], tension: 0.25 },
-      { label: "Heap Usage %", borderColor: "#ef4444", data: [], tension: 0.25 }
-    ]);
-    apmChart = createLineChart("apmChart", [
-      { label: "Mean ms", borderColor: "#10b981", data: [], tension: 0.25 },
-      { label: "Max ms", borderColor: "#eab308", data: [], tension: 0.25 }
-    ]);
-
-    endpointChart = new Chart(document.getElementById("endpointChart"), {
-      type: "bar",
-      data: {
-        labels: [],
-        datasets: [
-          { label: "Mean ms", data: [], backgroundColor: "#60a5fa" },
-          { label: "Max ms", data: [], backgroundColor: "#f59e0b" }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: { labels: { color: "#cfe0ff" } }
-        },
-        scales: {
-          x: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } },
-          y: { ticks: { color: "#9fb0d2" }, grid: { color: "#23314a" } }
-        }
-      }
-    });
-  }
-
-  function pushPoint(chart, values) {
-    for (let i = 0; i < chart.data.datasets.length; i++) {
-      chart.data.datasets[i].data.push(values[i]);
-      if (chart.data.datasets[i].data.length > MAX_POINTS) {
-        chart.data.datasets[i].data.shift();
-      }
-    }
-    chart.update();
-  }
-
-  function pushLabel() {
-    labels.push(new Date().toLocaleTimeString());
-    if (labels.length > MAX_POINTS) labels.shift();
-  }
-
-  function updateEndpointChart(items) {
-    const list = Array.isArray(items) ? items : [];
-    endpointChart.data.labels = list.map(x => x.uri);
-    endpointChart.data.datasets[0].data = list.map(x => x.meanMs ?? 0);
-    endpointChart.data.datasets[1].data = list.map(x => x.maxMs ?? 0);
-    endpointChart.update();
-  }
-
   function fmt(v, unit = "") {
     if (v === null || v === undefined || Number.isNaN(v)) return "-";
     return `${v}${unit}`;
+  }
+
+  function pctClass(v) {
+    if (v === null || v === undefined) return "";
+    if (v >= 80) return "bad";
+    if (v >= 60) return "warn";
+    return "ok";
   }
 
   function statusClass(status) {
@@ -255,60 +518,238 @@
     return "bad";
   }
 
+  function chipByLevel(el, level, text) {
+    el.className = `chip ${level}`;
+    el.textContent = text;
+  }
+
+  function alertByLevel(el, level, text) {
+    el.className = `alert ${level}`;
+    el.textContent = text;
+  }
+
+  function setBar(id, labelId, value) {
+    const bar = document.getElementById(id);
+    const label = document.getElementById(labelId);
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      bar.style.width = "0%";
+      bar.style.background = "#94a3b8";
+      label.textContent = "-";
+      return;
+    }
+    const clamped = Math.max(0, Math.min(100, value));
+    bar.style.width = `${clamped}%`;
+    bar.style.background = clamped >= 80 ? "#dc2626" : clamped >= 60 ? "#d97706" : "#0ea5e9";
+    label.textContent = `${Number(clamped.toFixed(2))}%`;
+  }
+
+  function chartOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: "#334155",
+            boxWidth: 10,
+            boxHeight: 10
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#64748b", maxRotation: 0, autoSkipPadding: 14 },
+          grid: { color: "#e5eaf1" }
+        },
+        y: {
+          ticks: { color: "#64748b" },
+          grid: { color: "#e5eaf1" }
+        }
+      }
+    };
+  }
+
+  function createLineChart(id, datasets) {
+    return new Chart(document.getElementById(id), {
+      type: "line",
+      data: { labels, datasets },
+      options: chartOptions()
+    });
+  }
+
+  function initCharts() {
+    dbChart = createLineChart("dbChart", [
+      { label: "Active", borderColor: "#16a34a", data: [], tension: 0.25, pointRadius: 0 },
+      { label: "Pending", borderColor: "#d97706", data: [], tension: 0.25, pointRadius: 0 }
+    ]);
+    cpuChart = createLineChart("cpuChart", [
+      { label: "Process %", borderColor: "#0284c7", data: [], tension: 0.25, pointRadius: 0 },
+      { label: "System %", borderColor: "#0ea5e9", data: [], tension: 0.25, pointRadius: 0 }
+    ]);
+    heapChart = createLineChart("heapChart", [
+      { label: "Heap Used MB", borderColor: "#0f766e", data: [], tension: 0.25, pointRadius: 0 },
+      { label: "Heap Usage %", borderColor: "#b45309", data: [], tension: 0.25, pointRadius: 0 }
+    ]);
+    apmChart = createLineChart("apmChart", [
+      { label: "Mean ms", borderColor: "#0ea5e9", data: [], tension: 0.25, pointRadius: 0 },
+      { label: "Max ms", borderColor: "#dc2626", data: [], tension: 0.25, pointRadius: 0 }
+    ]);
+    endpointChart = new Chart(document.getElementById("endpointChart"), {
+      type: "bar",
+      data: {
+        labels: [],
+        datasets: [
+          { label: "Mean ms", data: [], backgroundColor: "#38bdf8" },
+          { label: "Max ms", data: [], backgroundColor: "#fb7185" }
+        ]
+      },
+      options: chartOptions()
+    });
+  }
+
+  function pushLabel() {
+    labels.push(new Date().toLocaleTimeString("ko-KR"));
+    if (labels.length > MAX_POINTS) labels.shift();
+  }
+
+  function pushPoint(chart, values) {
+    for (let i = 0; i < chart.data.datasets.length; i += 1) {
+      chart.data.datasets[i].data.push(values[i]);
+      if (chart.data.datasets[i].data.length > MAX_POINTS) {
+        chart.data.datasets[i].data.shift();
+      }
+    }
+    chart.update();
+  }
+
+  function updateEndpoint(items) {
+    const list = Array.isArray(items) ? items : [];
+    endpointChart.data.labels = list.map((x) => x.uri);
+    endpointChart.data.datasets[0].data = list.map((x) => x.meanMs ?? 0);
+    endpointChart.data.datasets[1].data = list.map((x) => x.maxMs ?? 0);
+    endpointChart.update();
+
+    const tbody = document.getElementById("endpoint-tbody");
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td class="path" colspan="4">데이터 없음</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map((x) => {
+      return `
+        <tr>
+          <td class="path">${x.uri ?? "-"}</td>
+          <td class="num">${x.count ?? "-"}</td>
+          <td class="num">${x.meanMs ?? "-"}</td>
+          <td class="num">${x.maxMs ?? "-"}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function assessOverall(dbStatus, cpuSystem, heapUsage, sum5xx) {
+    if (dbStatus !== "UP" || sum5xx > 0 || (cpuSystem ?? 0) >= 90 || (heapUsage ?? 0) >= 90) {
+      return { level: "bad", text: "종합 상태 CRITICAL" };
+    }
+    if ((cpuSystem ?? 0) >= 75 || (heapUsage ?? 0) >= 80) {
+      return { level: "warn", text: "종합 상태 WARNING" };
+    }
+    return { level: "ok", text: "종합 상태 NORMAL" };
+  }
+
   async function load() {
     try {
       const res = await fetch("/api/monitoring/summary");
-      if (!res.ok) throw new Error("fetch failed");
+      if (!res.ok) throw new Error("summary fetch failed");
       const data = await res.json();
 
       const db = data.db || {};
       const cpu = data.cpu || {};
       const heap = data.heap || {};
       const apm = data.apm || {};
+      const statusCounts = apm.statusCounts || {};
+      const sumByPrefix = (prefix) => Object.entries(statusCounts)
+        .filter(([key]) => key.startsWith(prefix))
+        .reduce((acc, [, value]) => acc + (value || 0), 0);
+      const sum2xx = sumByPrefix("2");
+      const sum4xx = sumByPrefix("4");
+      const sum5xx = sumByPrefix("5");
 
-      const dbStatus = document.getElementById("db-status");
-      dbStatus.textContent = db.status || "-";
-      dbStatus.className = `status ${statusClass(db.status)}`;
-      document.getElementById("db-active").textContent = fmt(db.activeConnections);
-      document.getElementById("db-idle").textContent = fmt(db.idleConnections);
-      document.getElementById("db-pending").textContent = fmt(db.pendingConnections);
-      document.getElementById("db-max").textContent = fmt(db.maxConnections);
-      document.getElementById("db-user").textContent = db.datasourceUser || "-";
-      document.getElementById("db-error").textContent = db.error || "-";
+      const dbActive = db.activeConnections;
+      const dbMax = db.maxConnections;
+      const dbUsage = dbActive !== null && dbActive !== undefined && dbMax ? (dbActive / dbMax) * 100 : null;
 
-      document.getElementById("cpu-process").textContent = fmt(cpu.processUsage, "%");
-      document.getElementById("cpu-system").textContent = fmt(cpu.systemUsage, "%");
-      document.getElementById("cpu-load").textContent = fmt(cpu.systemLoadAverage1m);
+      const cpuSystem = cpu.systemUsage;
+      const heapUsage = heap.usagePercent;
 
-      document.getElementById("heap-used").textContent = fmt(heap.usedMb);
-      document.getElementById("heap-committed").textContent = fmt(heap.committedMb);
-      document.getElementById("heap-max").textContent = fmt(heap.maxMb);
-      document.getElementById("heap-usage").textContent = fmt(heap.usagePercent, "%");
-
-      document.getElementById("apm-count").textContent = fmt(apm.httpRequestCount);
       const now = Date.now();
       let rps = null;
       if (prevHttpCount !== null && prevLoadedAt !== null) {
         const deltaCount = (apm.httpRequestCount ?? 0) - prevHttpCount;
         const deltaSec = (now - prevLoadedAt) / 1000.0;
-        if (deltaSec > 0) {
-          rps = Math.max(0, deltaCount / deltaSec);
-        }
+        if (deltaSec > 0) rps = Math.max(0, deltaCount / deltaSec);
       }
       prevHttpCount = apm.httpRequestCount ?? 0;
       prevLoadedAt = now;
-      document.getElementById("apm-rps").textContent = fmt(rps !== null ? Number(rps.toFixed(2)) : null);
-      document.getElementById("apm-mean").textContent = fmt(apm.httpMeanLatencyMs);
-      document.getElementById("apm-max").textContent = fmt(apm.httpMaxLatencyMs);
-      const statusCounts = apm.statusCounts || {};
-      const sumByPrefix = (prefix) => Object.entries(statusCounts)
-              .filter(([key]) => key.startsWith(prefix))
-              .reduce((acc, [, value]) => acc + (value || 0), 0);
-      document.getElementById("apm-status-groups").textContent =
-              `${sumByPrefix("2")} / ${sumByPrefix("4")} / ${sumByPrefix("5")}`;
+
+      const dbStatusEl = document.getElementById("db-status");
+      dbStatusEl.textContent = db.status || "-";
+      dbStatusEl.className = `kpi-value ${statusClass(db.status)}`;
+      document.getElementById("db-user").textContent = db.datasourceUser || "-";
+      document.getElementById("db-usage").textContent = fmt(dbUsage !== null ? Number(dbUsage.toFixed(2)) : null, "%");
+      document.getElementById("db-usage").className = `kpi-value ${pctClass(dbUsage)}`;
+      document.getElementById("db-active-max").textContent = `${fmt(dbActive)} / ${fmt(dbMax)}`;
+      document.getElementById("cpu-system").textContent = fmt(cpuSystem, "%");
+      document.getElementById("cpu-system").className = `kpi-value ${pctClass(cpuSystem)}`;
+      document.getElementById("cpu-process").textContent = fmt(cpu.processUsage, "%");
+      document.getElementById("heap-usage").textContent = fmt(heapUsage, "%");
+      document.getElementById("heap-usage").className = `kpi-value ${pctClass(heapUsage)}`;
+      document.getElementById("heap-used-max").textContent = `${fmt(heap.usedMb)} / ${fmt(heap.maxMb)}`;
+      document.getElementById("apm-mean").textContent = fmt(apm.httpMeanLatencyMs, " ms");
+      document.getElementById("apm-max").textContent = fmt(apm.httpMaxLatencyMs, " ms");
+      document.getElementById("apm-count").textContent = fmt(apm.httpRequestCount);
+      document.getElementById("apm-rps").textContent = fmt(rps !== null ? Number(rps.toFixed(2)) : null, " rps");
+
+      document.getElementById("db-pending").textContent = fmt(db.pendingConnections);
+      document.getElementById("db-idle").textContent = fmt(db.idleConnections);
+      document.getElementById("db-error").textContent = db.error || "-";
+      document.getElementById("cpu-load").textContent = fmt(cpu.systemLoadAverage1m);
+      document.getElementById("heap-used").textContent = fmt(heap.usedMb);
+      document.getElementById("heap-committed").textContent = fmt(heap.committedMb);
+      document.getElementById("heap-max").textContent = fmt(heap.maxMb);
+      document.getElementById("apm-status-groups").textContent = `${sum2xx} / ${sum4xx} / ${sum5xx}`;
       document.getElementById("apm-tracing").textContent = apm.tracingEnabled ? "true" : "false";
       document.getElementById("apm-otlp").textContent = apm.otlpEndpoint || "-";
-      updateEndpointChart(apm.topEndpoints);
+
+      setBar("bar-db", "bar-db-label", dbUsage);
+      setBar("bar-cpu", "bar-cpu-label", cpuSystem);
+      setBar("bar-heap", "bar-heap-label", heapUsage);
+
+      const dbAlert = db.status !== "UP"
+        ? { level: "bad", text: `DB 상태 이상: ${db.status || "UNKNOWN"}` }
+        : (db.pendingConnections ?? 0) > 0
+          ? { level: "warn", text: `DB Pending 연결 ${db.pendingConnections}` }
+          : { level: "ok", text: "DB 정상" };
+      alertByLevel(document.getElementById("alert-db"), dbAlert.level, dbAlert.text);
+
+      const perfAlert = (cpuSystem ?? 0) >= 80 || (heapUsage ?? 0) >= 80
+        ? ((cpuSystem ?? 0) >= 90 || (heapUsage ?? 0) >= 90)
+          ? { level: "bad", text: `리소스 위험: CPU ${fmt(cpuSystem, "%")} / HEAP ${fmt(heapUsage, "%")}` }
+          : { level: "warn", text: `리소스 주의: CPU ${fmt(cpuSystem, "%")} / HEAP ${fmt(heapUsage, "%")}` }
+        : { level: "ok", text: `리소스 정상: CPU ${fmt(cpuSystem, "%")} / HEAP ${fmt(heapUsage, "%")}` };
+      alertByLevel(document.getElementById("alert-cpu-heap"), perfAlert.level, perfAlert.text);
+
+      const apmAlert = sum5xx > 0
+        ? { level: "bad", text: `APM 오류 응답 감지: 5xx ${sum5xx}` }
+        : (apm.httpMeanLatencyMs ?? 0) >= 500
+          ? { level: "warn", text: `APM 지연 주의: Mean ${fmt(apm.httpMeanLatencyMs, " ms")}` }
+          : { level: "ok", text: "APM 정상" };
+      alertByLevel(document.getElementById("alert-apm"), apmAlert.level, apmAlert.text);
+
+      const overall = assessOverall(db.status, cpuSystem, heapUsage, sum5xx);
+      chipByLevel(document.getElementById("overall-chip"), overall.level, overall.text);
+
+      updateEndpoint(apm.topEndpoints);
 
       pushLabel();
       pushPoint(dbChart, [db.activeConnections ?? null, db.pendingConnections ?? null]);
@@ -316,15 +757,25 @@
       pushPoint(heapChart, [heap.usedMb ?? null, heap.usagePercent ?? null]);
       pushPoint(apmChart, [apm.httpMeanLatencyMs ?? null, apm.httpMaxLatencyMs ?? null]);
 
-      document.getElementById("updated").textContent = new Date().toLocaleString();
+      document.getElementById("updated").textContent = new Date().toLocaleString("ko-KR");
     } catch (e) {
       document.getElementById("updated").textContent = `오류: ${e.message}`;
+      chipByLevel(document.getElementById("overall-chip"), "bad", "종합 상태 CRITICAL");
+      alertByLevel(document.getElementById("alert-db"), "bad", "모니터링 API 요청 실패");
+      alertByLevel(document.getElementById("alert-cpu-heap"), "bad", "데이터 수집 불가");
+      alertByLevel(document.getElementById("alert-apm"), "bad", "데이터 수집 불가");
     }
   }
 
+  function tickClock() {
+    document.getElementById("clock").textContent = new Date().toLocaleTimeString("ko-KR");
+  }
+
   initCharts();
+  tickClock();
   load();
-  setInterval(load, 5000);
+  setInterval(load, REFRESH_MS);
+  setInterval(tickClock, 1000);
 </script>
 </body>
 </html>

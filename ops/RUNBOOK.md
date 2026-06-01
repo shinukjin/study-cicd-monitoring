@@ -5,7 +5,7 @@
 - Check:
   - `docker ps --filter "name=study-app"`
   - `docker logs --tail 200 study-app`
-  - `curl -fsS http://localhost:8080/actuator/health`
+  - `curl -fsS http://localhost:18080/actuator/health`
 - First action:
   - `cd /opt/study-cicd-monitoring && docker compose up -d app`
 - Rollback:

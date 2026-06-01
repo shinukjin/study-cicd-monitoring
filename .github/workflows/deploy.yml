@@ -40,6 +40,24 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Verify Docker daemon
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "docker CLI is not installed on this self-hosted runner."
+            exit 1
+          fi
+          if ! docker info >/dev/null 2>&1; then
+            echo "Cannot connect to Docker daemon (unix:///var/run/docker.sock)."
+            echo "On the runner host, run:"
+            echo "  sudo systemctl start docker"
+            echo "  sudo usermod -aG docker $(whoami)"
+            echo "  sudo systemctl restart actions.runner.*.service   # if runner runs as a service"
+            exit 1
+          fi
+          docker compose version
+
       - name: Login to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 

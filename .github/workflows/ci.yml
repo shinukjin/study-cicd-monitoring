@@ -28,7 +28,8 @@ jobs:
 
       - name: Smoke test container health
         run: |
-          docker run -d --name study-smoke -p 18080:8080 \
+          docker run -d --name study-smoke -p 18080:18080 \
+            -e SERVER_PORT=18080 \
             -e SPRING_DATASOURCE_URL=jdbc:mariadb://invalid:3306/study \
             -e MANAGEMENT_HEALTH_DB_ENABLED=false \
             study-cicd-monitoring:ci
